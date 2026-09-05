@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from groq import RateLimitError
-
+from ingest_docs import ingest_directory, chroma_client as ingest_chroma_client
 from agent import agent_graph
 from leads import get_lead
 from clients import resolve_client
@@ -185,3 +185,29 @@ def chat(request: ChatRequest):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+# WHY: Runs once when the actual deployed app boots up — NOT via a separate
+# `railway run` command, which we discovered uses a different ephemeral
+# context that doesn't share the live service's mounted volume. Running
+# ingestion HERE guarantees it uses the exact same Chroma storage the
+# running app reads from for every /chat request.
+@app.on_event("startup")
+def ingest_on_startup():
+    known_clients = ["client_shoestore", "client_bookstore"]
+
+    for client_id in known_clients:
+        collection_name = f"policies_{client_id}"
+        try:
+            collection = ingest_chroma_client.get_collection(collection_name)
+            if collection.count() > 0:
+                print(f"[startup] '{collection_name}' already has {collection.count()} chunks, skipping ingestion.")
+                continue
+        except Exception:
+            pass  # WHY: collection doesn't exist yet — proceed to ingest it
+
+        docs_path = f"store_docs/{client_id}"
+        print(f"[startup] Ingesting docs for {client_id}...")
+        try:
+            ingest_directory(docs_path, client_id)
+        except Exception as e:
+            print(f"[startup] Failed to ingest {client_id}: {e}")
