@@ -14,3 +14,4 @@ node_modules/
 
 # Vector database (rebuilt separately, not committed)
 chroma_store/
+notes/
