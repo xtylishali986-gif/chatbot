@@ -1,0 +1,16 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+node_modules/
+
+# Virtual environments
+.venv
+.env
+*.pyc
+
+# Vector database (rebuilt separately, not committed)
+chroma_store/
