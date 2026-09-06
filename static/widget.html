@@ -8,9 +8,6 @@
 <meta charset="UTF-8" />
 <title>Store Assistant</title>
 <style>
-  /* WHY: reset margins/fonts so the widget looks consistent regardless of
-     what CSS the HOST page might otherwise leak in (though iframes are
-     isolated, this is just good baseline hygiene) */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -99,18 +96,21 @@
 </div>
 
 <script>
-  const API_URL = "http://127.0.0.1:8000";
+  // WHY: Empty string = "same origin" — since widget.html is served from
+  // the SAME Railway app that runs /chat, we don't need to hardcode any
+  // domain at all. This also means it automatically works correctly
+  // whether you're testing locally or running live on Railway, with zero
+  // code changes needed between environments.
+  const API_URL = "";
 
-  // WHY: Read config passed via the iframe's own URL (set by embed.js).
-  // This runs INSIDE the iframe, so window.location here refers to
-  // widget.html's URL, which includes the ?color=...&storeName=... params.
   const urlParams = new URLSearchParams(window.location.search);
   const brandColor = urlParams.get("color") || "#2563eb";
   const storeName = urlParams.get("storeName") || "Store Assistant";
+  // WHY (Phase 8 integration): read the api_key passed by embed.js via URL
+  // params — this is what tells the backend WHICH client this conversation
+  // belongs to, so it returns that client's products/policies/orders only.
+  const apiKey = urlParams.get("apiKey") || "";
 
-  // WHY: Apply the client's brand color and name dynamically on load,
-  // instead of these being hardcoded — this is what makes ONE widget.html
-  // file usable across many different client stores.
   document.getElementById("header").textContent = storeName;
   document.getElementById("header").style.background = brandColor;
   document.getElementById("send-btn").style.background = brandColor;
@@ -126,8 +126,6 @@
     const div = document.createElement("div");
     div.className = "msg " + role;
     div.textContent = text;
-    // WHY: user message bubbles use the brand color dynamically too,
-    // instead of the hardcoded blue from before.
     if (role === "user") div.style.background = brandColor;
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -148,8 +146,16 @@
       const response = await fetch(API_URL + "/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: sessionId, message: text }),
+        // WHY: api_key is now included on every request — required since
+        // Phase 8 made this a mandatory field for identifying the client.
+        body: JSON.stringify({ api_key: apiKey, session_id: sessionId, message: text }),
       });
+
+      if (response.status === 401) {
+        typingEl.remove();
+        addMessage("bot", "This chat widget isn't configured correctly. Please contact the site owner.");
+        return;
+      }
 
       if (response.status === 503) {
         const data = await response.json();

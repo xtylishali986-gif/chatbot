@@ -1,27 +1,29 @@
 // static/embed.js
 // WHAT: Client-facing loader script. Reads optional config the client sets
 // BEFORE including this script, and passes it to the widget via URL params.
-// WHY: Lets each client customize brand color/store name WITHOUT us
+// WHY: Lets each client customize brand color/store name/api key WITHOUT us
 // maintaining a separate widget.html per client — one file serves everyone.
 
 (function () {
-  const WIDGET_BASE_URL = "http://127.0.0.1:8000";
+  // WHY: This MUST be the full, absolute Railway URL — unlike widget.html
+  // (which could use a relative "" path since it calls /chat on its OWN
+  // origin), embed.js runs on the CLIENT'S website, a completely different
+  // domain. It has no way to know your server's address unless we spell
+  // it out explicitly here.
+  const WIDGET_BASE_URL = "https://web-production-29003.up.railway.app";
 
   if (window.__storeChatWidgetLoaded) return;
   window.__storeChatWidgetLoaded = true;
 
-  // WHY: Clients set window.StoreChatConfig BEFORE the script tag to
-  // customize their widget — if they don't, we fall back to sensible
-  // defaults so the widget still works with zero configuration.
   const config = window.StoreChatConfig || {};
   const color = config.color || "#2563eb";
   const storeName = config.storeName || "Store Assistant";
+  const apiKey = config.apiKey || "";
 
-  // WHY: Build the iframe URL with config passed as query params —
-  // widget.html reads these on load via URLSearchParams.
   const params = new URLSearchParams({
     color: color,
     storeName: storeName,
+    apiKey: apiKey,
   });
 
   const button = document.createElement("div");
