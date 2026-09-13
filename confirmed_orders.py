@@ -19,7 +19,7 @@ def confirm_order(
     customer_name: str,
     customer_email: str,
     shipping_address: str,
-    customer_phone: str | None = None,
+    customer_phone: str ,
 ) -> dict:
     result = (
         supabase.table("confirmed_orders")

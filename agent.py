@@ -115,7 +115,7 @@ TOOLS_SCHEMA = [
                     "quantity": {"type": "number"},
                     "customer_name": {"type": "string"},
                     "customer_email": {"type": "string"},
-                    "customer_phone": {"type": ["string", "null"]},
+                    "customer_phone": {"type": "string"},
                     "shipping_address": {"type": "string"},
                 },
                 "required": ["product_name", "quantity", "customer_name", "customer_email", "shipping_address"],
