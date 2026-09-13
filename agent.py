@@ -22,7 +22,8 @@ from products import search_products
 from orders import lookup_order
 from leads import save_lead
 from escalations import flag_for_human
-
+from products import search_products, find_solution
+from confirmed_orders import confirm_order
 load_dotenv()
 
 groq_client = Groq(api_key=os.environ["GROQ_API_KEY"])
@@ -69,6 +70,55 @@ TOOLS_SCHEMA = [
                     "max_price": {"type": ["number", "null"], "description": "Maximum price filter in USD. Use null if not filtering by price."},
                 },
                 "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "find_solution_tool",
+            "description": (
+                "Search the product catalog for a product that addresses a "
+                "specific customer concern (e.g. 'acne', 'dry skin', 'dark "
+                "spots.etc'). Use this when a customer describes a problem they "
+                "want solved. If the concern is vague, ask ONE brief "
+                "clarifying question first (like skin type or main symptom) you have to be completely sure about the problem"
+                "before calling this tool."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "concern": {"type": "string", "description": "The customer's stated concern, in a few words"},
+                },
+                "required": ["concern"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "confirm_order_tool",
+            "description": (
+                "Finalize and log a confirmed order ONLY after the customer "
+                "has explicitly agreed to buy AND you have collected ALL "
+                "required details: product name, quantity, full name, email, "
+                "shipping address. Phone is required to confirm the order. NEVER call this with "
+                "missing required fields. After calling this, tell the "
+                "customer honestly their order is logged and the team will "
+                "follow up with a secure payment link — NEVER claim payment "
+                "was processed."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "product_name": {"type": "string"},
+                    "quantity": {"type": "number"},
+                    "customer_name": {"type": "string"},
+                    "customer_email": {"type": "string"},
+                    "customer_phone": {"type": ["string", "null"]},
+                    "shipping_address": {"type": "string"},
+                },
+                "required": ["product_name", "quantity", "customer_name", "customer_email", "shipping_address"],
             },
         },
     },
@@ -259,6 +309,10 @@ def tools_node(state: AgentState) -> dict:
             result = save_lead(client_id=client_id, session_id=session_id, **args)
         elif name == "flag_for_human_tool":
             result = flag_for_human(client_id=client_id, session_id=session_id, **args)
+        elif name == "find_solution_tool":
+            result = find_solution(client_id=client_id, **args)
+        elif name == "confirm_order_tool":
+            result = confirm_order(client_id=client_id, session_id=session_id, **args)
         else:
             # WHY: Defensive fallback — if the model somehow calls a tool
             # name that matches none of ours (e.g. a hallucinated name that

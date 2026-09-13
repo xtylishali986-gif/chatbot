@@ -37,3 +37,19 @@ def search_products(
 
     response = query.execute()
     return response.data
+
+def find_solution(client_id: str, concern: str) -> list[dict]:
+    """Search for products that address a specific customer-stated concern,
+    matching against BOTH the concerns_solved tags and the description text.
+    WHY separate from search_products: this is symptom-to-product matching,
+    a different kind of query than category/price filtering."""
+    safe_concern = concern.replace(",", " ").strip()
+    response = (
+        supabase.table("products")
+        .select("*")
+        .eq("client_id", client_id)
+        .eq("in_stock", True)
+        .or_(f"concerns_solved.ilike.%{safe_concern}%,description.ilike.%{safe_concern}%")
+        .execute()
+    )
+    return response.data
